@@ -105,7 +105,7 @@ func getConfig() {
 	getCityMap(config)
 }
 func getInfoFromShareLink(shareLink string) (tel, descZh string) {
-	fmt.Println(shareLink)
+	//fmt.Println(shareLink)
 	res, err := http.Get(shareLink)
 	if err != nil {
 		log.Fatal(err)
@@ -123,7 +123,7 @@ func getInfoFromShareLink(shareLink string) (tel, descZh string) {
 
 	doc.Find("div[class=phone-info]").Each(func(i int, selection *goquery.Selection) {
 		tel = selection.Text()
-		fmt.Println(tel)
+		//fmt.Println(tel)
 	})
 
 	doc.Find("span[class=article-quote]").Each(func(i int, selection *goquery.Selection) {
@@ -136,14 +136,46 @@ func getInfoFromShareLink(shareLink string) (tel, descZh string) {
 	sss := strings.Split(ss[1], `<div class="price-subtitle">晚膳</div>`)
 	//sss[0] lunch open hour
 
+	domm, err := goquery.NewDocumentFromReader(strings.NewReader(sss[0]))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	openLunch := []string{}
+	domm.Find("div[class=opening-label-closed]").Each(func(i int, selection *goquery.Selection) {
+		openLunch = append(openLunch, strings.Trim(selection.Text(), " "))
+	})
+	openLunchTime := []string{}
+	domm.Find("div[class=opening-info-time]").Each(func(i int, selection *goquery.Selection) {
+		exist := strings.Contains(selection.Text(), "-")
+		if exist {
+			openLunchTime = append(openLunchTime, selection.Text())
+		}
+	})
+
 	ssss := strings.Split(sss[1], `<!-- ICON and TEXT -->`)
-	fmt.Println(ssss[0])
+	dom, err := goquery.NewDocumentFromReader(strings.NewReader(ssss[0]))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	openDiner := []string{}
+	dom.Find("div[class=opening-label-closed]").Each(func(i int, selection *goquery.Selection) {
+		openDiner = append(openDiner, strings.TrimSpace(selection.Text()))
+	})
+	openDinerTime := []string{}
+	domm.Find("div[class=opening-info-time]").Each(func(i int, selection *goquery.Selection) {
+		exist := strings.Contains(selection.Text(), "-")
+		if exist {
+			openDinerTime = append(openDinerTime, selection.Text())
+		}
+	})
+
+	fmt.Println(openDiner)
 
 	return tel, descZh
 }
 
 func getFromEnLink(shareLink string) (enName string, descEn string) {
-	fmt.Println(shareLink)
+	//fmt.Println(shareLink)
 	res, err := http.Get(shareLink)
 	if err != nil {
 		log.Fatal(err)

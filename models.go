@@ -197,7 +197,7 @@ type RequireData struct {
 	Lat       string
 	Long      string
 	OpenLunch string
-	OpenDiner string
+	OpenDiner []string
 	Price     Price
 }
 

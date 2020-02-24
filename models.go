@@ -185,20 +185,21 @@ type Location struct {
 }
 
 type RequireData struct {
-	NameCn    string
-	NameEn    string
-	Address   string
-	Tel       string
-	Url       string
-	Star      string
-	Cat       string
-	DescZh    string
-	DescEn    string
-	Lat       string
-	Long      string
-	OpenLunch string
-	OpenDiner []string
-	Price     Price
+	NameCn  string
+	NameEn  string
+	Address string
+	Tel     string
+	Url     string
+	Star    string
+	Cat     string
+	DescZh  string
+	DescEn  string
+	Lat     string
+	Long    string
+	OpenDay string
+	//OpenLunch string
+	//OpenDiner []string
+	Price string
 }
 
 type OpenHour struct {

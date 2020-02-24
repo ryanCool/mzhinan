@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -104,8 +105,8 @@ func getConfig() {
 	getCatMap(config)
 	getCityMap(config)
 }
-func getInfoFromShareLink(shareLink string) (tel, descZh string) {
-	//fmt.Println(shareLink)
+func getInfoFromShareLink(shareLink string) (tel, descZh, openHour, price string) {
+	fmt.Println(shareLink)
 	res, err := http.Get(shareLink)
 	if err != nil {
 		log.Fatal(err)
@@ -133,6 +134,50 @@ func getInfoFromShareLink(shareLink string) (tel, descZh string) {
 
 	htmlText, _ := doc.Html()
 	ss := strings.Split(htmlText, `<div class="opening-hours-item border-bottom">`)
+
+	//get price
+	pricess := strings.Split(ss[0], `<div class="price-item border-bottom">`)
+	lunchss := strings.Split(pricess[1], `<div class="price-subtitle">晚膳</div>`)
+	lunchPricedoc, err := goquery.NewDocumentFromReader(strings.NewReader(lunchss[0]))
+	if err != nil {
+		panic(err)
+	}
+
+	lunchTitle := []string{}
+	lunchPricedoc.Find("div[class=price-info]").Each(func(i int, selection *goquery.Selection) {
+		lunchTitle = append(lunchTitle, selection.Text())
+	})
+
+	lunchInfo := []string{}
+	lunchPricedoc.Find("div[class=price-number]").Each(func(i int, selection *goquery.Selection) {
+		lunchInfo = append(lunchInfo, selection.Text())
+	})
+
+	var dinnerTitle, dinnerInfo []string
+	if len(lunchss) > 1 {
+		dinerPricedoc, err := goquery.NewDocumentFromReader(strings.NewReader(lunchss[1]))
+		if err != nil {
+			panic(err)
+		}
+
+		dinerPricedoc.Find("div[class=price-info]").Each(func(i int, selection *goquery.Selection) {
+			dinnerTitle = append(dinnerTitle, selection.Text())
+		})
+
+		dinerPricedoc.Find("div[class=price-number]").Each(func(i int, selection *goquery.Selection) {
+			dinnerInfo = append(dinnerInfo, selection.Text())
+		})
+	}
+
+	price = "lunch\n"
+	for i := range lunchTitle {
+		price = price + lunchTitle[i] + "\n" + lunchInfo[i] + "\n"
+	}
+	price = price + "dinner\n"
+	for i := range dinnerTitle {
+		price = price + dinnerTitle[i] + "\n" + dinnerInfo[i] + "\n"
+	}
+
 	sss := strings.Split(ss[1], `<div class="price-subtitle">晚膳</div>`)
 	//sss[0] lunch open hour
 
@@ -142,8 +187,9 @@ func getInfoFromShareLink(shareLink string) (tel, descZh string) {
 	}
 	openLunch := []string{}
 	domm.Find("div[class=opening-label-closed]").Each(func(i int, selection *goquery.Selection) {
-		openLunch = append(openLunch, strings.Trim(selection.Text(), " "))
+		openLunch = append(openLunch, strings.TrimSpace(selection.Text()))
 	})
+
 	openLunchTime := []string{}
 	domm.Find("div[class=opening-info-time]").Each(func(i int, selection *goquery.Selection) {
 		exist := strings.Contains(selection.Text(), "-")
@@ -151,6 +197,14 @@ func getInfoFromShareLink(shareLink string) (tel, descZh string) {
 			openLunchTime = append(openLunchTime, selection.Text())
 		}
 	})
+	//fmt.Println("Lunch")
+	//for i := range openLunchTime {
+	//	fmt.Println(openLunch[i], openLunchTime[i])
+	//}
+	//
+	//if len(openLunchTime) == 0 {
+	//	fmt.Println(sss[0])
+	//}
 
 	ssss := strings.Split(sss[1], `<!-- ICON and TEXT -->`)
 	dom, err := goquery.NewDocumentFromReader(strings.NewReader(ssss[0]))
@@ -162,16 +216,39 @@ func getInfoFromShareLink(shareLink string) (tel, descZh string) {
 		openDiner = append(openDiner, strings.TrimSpace(selection.Text()))
 	})
 	openDinerTime := []string{}
-	domm.Find("div[class=opening-info-time]").Each(func(i int, selection *goquery.Selection) {
+	dom.Find("div[class=opening-info-time]").Each(func(i int, selection *goquery.Selection) {
 		exist := strings.Contains(selection.Text(), "-")
 		if exist {
 			openDinerTime = append(openDinerTime, selection.Text())
 		}
 	})
+	//
+	//fmt.Println("Dinner")
+	//if len(openDiner) == len(openDinerTime) {
+	//	for i := range openDiner {
+	//		fmt.Println(openDiner[i], openDinerTime[i])
+	//	}
+	//} else {
+	//	fmt.Println(openDiner)
+	//	fmt.Println(openDinerTime)
+	//	fmt.Println(ssss[0])
+	//}
+	//if len(openDiner) == 0 {
+	//	fmt.Println(ssss[0])
+	//}
+	OpenDay := "Lunch\n"
+	for i := range openLunch {
+		OpenDay = OpenDay + openLunch[i] + "\n" + openLunchTime[i] + "\n"
+	}
 
-	fmt.Println(openDiner)
+	OpenDay = OpenDay + "Dinner\n"
+	for i := range openDiner {
+		OpenDay = OpenDay + openDiner[i] + "\n" + openDinerTime[i] + "\n"
+	}
+	//fmt.Println(OpenDay)
+	//fmt.Println(price)
 
-	return tel, descZh
+	return tel, descZh, OpenDay, price
 }
 
 func getFromEnLink(shareLink string) (enName string, descEn string) {
@@ -193,7 +270,7 @@ func getFromEnLink(shareLink string) (enName string, descEn string) {
 
 	doc.Find("title").Each(func(i int, selection *goquery.Selection) {
 		enName = selection.Text()
-		fmt.Println(enName)
+		//fmt.Println(enName)
 	})
 
 	doc.Find("span[class=article-quote]").Each(func(i int, selection *goquery.Selection) {
@@ -204,9 +281,20 @@ func getFromEnLink(shareLink string) (enName string, descEn string) {
 	return enName, descEn
 }
 
+var done = make(chan bool)
+
 func main() {
+
 	getConfig()
 	fmt.Println("getConfig success")
+	file, err := os.Create("result.csv")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
 
 	resaurants := getResaurant()
 
@@ -215,32 +303,62 @@ func main() {
 		for _, resaurant := range v {
 			// Request the HTML page.
 
-			fmt.Println(resaurant.Name)
+			//fmt.Println(resaurant.Name)
 			shareLinkZh := "https://www.mzhinan.cn/share/restaurant/" + resaurant.ID + "/zh"
 			shareLinkEn := "https://www.mzhinan.cn/share/restaurant/" + resaurant.ID + "/en"
 
-			tel, descZh := getInfoFromShareLink(shareLinkZh)
+			go func() {
+				tel, descZh, open, price := getInfoFromShareLink(shareLinkZh)
 
-			enName, descEn := getFromEnLink(shareLinkEn)
+				enName, descEn := getFromEnLink(shareLinkEn)
 
-			ls := strings.Split(resaurant.CoordinateAmap, ",")
+				ls := strings.Split(resaurant.CoordinateAmap, ",")
 
-			finalData[cityName] = append(finalData[cityName], RequireData{
-				NameCn:  resaurant.Name,
-				NameEn:  enName,
-				Address: resaurant.Address,
-				Tel:     tel,
-				Url:     shareLinkZh,
-				Star:    scoreMap[resaurant.Star],
-				Cat:     catMap[resaurant.Cuisine],
-				DescZh:  descZh,
-				DescEn:  descEn,
-				Lat:     ls[1],
-				Long:    ls[0],
-				//OpenDiner: info.OpeningHoursDinner,
-				//OpenLunch: info.OpeningHoursLunch,
-				//Price:     info.Price,
+				finalData[cityName] = append(finalData[cityName], RequireData{
+					NameCn:  resaurant.Name,
+					NameEn:  enName,
+					Address: resaurant.Address,
+					Tel:     tel,
+					Url:     shareLinkZh,
+					Star:    scoreMap[resaurant.Star],
+					Cat:     catMap[resaurant.Cuisine],
+					DescZh:  descZh,
+					DescEn:  descEn,
+					Lat:     ls[1],
+					Long:    ls[0],
+					OpenDay: open,
+					Price:   price,
+				})
+			}()
+
+			<-done
+		}
+	}
+
+	for k, v := range finalData {
+		err := writer.Write([]string{"city ===========" + k})
+		if err != nil {
+			panic(err)
+		}
+		for _, val := range v {
+			err := writer.Write([]string{
+				val.NameCn,
+				val.NameEn,
+				val.Address,
+				val.Tel,
+				val.Url,
+				val.Star,
+				val.Cat,
+				val.DescZh,
+				val.DescEn,
+				val.Lat,
+				val.Long,
+				val.OpenDay,
+				val.Price,
 			})
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 
